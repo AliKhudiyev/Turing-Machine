@@ -179,12 +179,14 @@ def move_tape(direction, machine_state):
     sign = -1
     if direction == 'R':
         sign = 1
-    for i in range(16):
+    
+    canvas.itemconfig(cell_symbols[0], text=blank[0])
+    for i in range(1, 16):
         if i >= len(tape):
             canvas.itemconfig(cell_symbols[i], text=blank[0])
         else:
             canvas.itemconfig(cell_symbols[i], text=tape[i])
-    canvas.move(machine_state_symbol, sign*_radius, 0)
+    # canvas.move(machine_state_symbol, sign*_radius, 0)
     canvas.itemconfigure(machine_state_symbol, text=machine_state)
 
 def run():
@@ -201,11 +203,12 @@ def run():
     if state == 'HALT':
         print(' ========= HALT ==========')
         restart_button['state'] = NORMAL
+        canvas.itemconfig(machine_state_symbol, text='HALT')
         is_halted = True
-    elif coord[0] >= _radius*14 and dir_ == 'R':
+    elif coord[0] >= 2*_radius*14 and dir_ == 'R':
         print('shifting the tape left...')
         move_tape(direction='L', machine_state=state)
-    elif coord[2] <= _radius*2 and dir_ == 'L':
+    elif coord[2] <= 2*_radius*2 and dir_ == 'L':
         print('shifting the tape right...')
         move_tape(direction='R', machine_state=state)
     else:
