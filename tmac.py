@@ -1,5 +1,8 @@
+#!/usr/local/anaconda3/bin/python
+
 import numpy as np
 import sys, getopt, time, re
+from collections import deque
 from tkinter import *
 
 try:
@@ -79,10 +82,18 @@ def compute(one_step_run=False, tape=input_symbols_copy, machine_state=init_stat
         for transition in transitions:
             print(transition[0], '->', transition[1])
         print()
+    if index < -1 or index > len(tape):
+        print('Error')
+        exit(1)
     
     direction = 0
     transition = None
     while machine_state != 'HALT':
+        if index == -1:
+            index = 0
+            tape.insert(0, blank[0])
+        elif index == len(tape):
+            tape.append(blank[0])
         print(machine_state, tape[index])
         is_found = False
         for transition in transitions:
@@ -125,7 +136,7 @@ index = 0
 root = Tk()
 root.title('Turing Machine')
 
-canvas = Canvas(root, width=30*15)
+canvas = Canvas(root, width=30*16-8, height=80)
 control_frame = Frame(root)
 
 canvas.pack()
@@ -135,16 +146,18 @@ transition_label = Label(control_frame, text='Transition', width=50)
 transition_label.grid(row=0, column=0, columnspan=3)
 # result_label = Label(control_frame, text='Result:')
 # result_label.grid(row=1, column=0)
+restart_button = Button(control_frame, text='Restart')
+restart_button['state'] = DISABLED
 
-cells = list()
-cell_symbols = list()
-machine_state_symbol = canvas.create_text(35, 60, text='')
+cells = list()          # tkinter rectangle objects
+cell_symbols = list()   # tkinter text objects
 _radius = 30
-machine = canvas.create_oval(5+_radius/2, 45, 5+3*_radius/2, 45+_radius)
+machine_state_symbol = canvas.create_text(1.5*_radius, 60, text='')
+machine = canvas.create_oval(_radius, 45, 2*_radius, 45+_radius)
 
 for i in range(16):
-    cell = canvas.create_rectangle(-10, 10, 20+_radius*i, 10+_radius)
-    cell_symbol = canvas.create_text(5+_radius*i, 25, text='_')
+    cell = canvas.create_rectangle(0, 10, 30+_radius*i, 10+_radius)
+    cell_symbol = canvas.create_text(_radius/2+_radius*i, 25, text=blank)
     cells.append(cell)
     cell_symbols.append(cell_symbol)
 
@@ -158,25 +171,28 @@ def move_machine(direction, machine_state):
     sign = -1
     if direction == 'R':
         sign = 1
-    for i in range(_radius):
-        canvas.move(machine, sign, 0)
+    canvas.move(machine, sign*_radius, 0)
     canvas.move(machine_state_symbol, sign*_radius, 0)
     canvas.itemconfigure(machine_state_symbol, text=machine_state)
-    
     
 def move_tape(direction, machine_state):
     sign = -1
     if direction == 'R':
         sign = 1
-    for i in range(_radius):
-        for j in range(16):
-            canvas.move(cells[j], sign, 0)
+    for i in range(16):
+        if i >= len(tape):
+            canvas.itemconfig(cell_symbols[i], text=blank[0])
+        else:
+            canvas.itemconfig(cell_symbols[i], text=tape[i])
     canvas.move(machine_state_symbol, sign*_radius, 0)
     canvas.itemconfigure(machine_state_symbol, text=machine_state)
 
 def run():
     global tape, state, index
     global speed
+    global restart_button
+
+    restart_button['state'] = DISABLED
     
     tape, state, index, transition, dir_ = compute(one_step_run=True, tape=tape, machine_state=state, index=index)
     coord = canvas.coords(machine)
@@ -184,11 +200,12 @@ def run():
     
     if state == 'HALT':
         print(' ========= HALT ==========')
+        restart_button['state'] = NORMAL
         is_halted = True
-    elif coord[0] >= -10+30*14 and dir_ == 'R':
+    elif coord[0] >= _radius*14 and dir_ == 'R':
         print('shifting the tape left...')
         move_tape(direction='L', machine_state=state)
-    elif coord[2] <= -10+30*2 and dir_ == 'L':
+    elif coord[2] <= _radius*2 and dir_ == 'L':
         print('shifting the tape right...')
         move_tape(direction='R', machine_state=state)
     else:
@@ -196,8 +213,7 @@ def run():
         print(f'moving the machine {dir_}')
     
     if not is_halted:
-        if transition is not None:
-            transition_label.config(text=f'Transition: {transition[0][0]}, {transition[0][1]} -> {transition[1][0]}, {transition[1][1]}, {transition[1][2]}')
+        transition_label.config(text=f'Transition: {transition[0][0]}, {transition[0][1]} -> {transition[1][0]}, {transition[1][1]}, {transition[1][2]}')
         for i in range(len(cell_symbols)-1):
             if i >= len(tape):
                 break
@@ -210,22 +226,27 @@ def run():
 
 def restart():
     global tape, state, index
+    global restart_button
 
     tape = input_symbols.copy()
     state = init_state.copy()[0]
     index = 0
 
     print('\tRestarted!')
-    # print(tape)
-    # print(state)
+    print(tape)
+    print(state)
+    restart_button['state'] = DISABLED
 
-    canvas.move(machine, -canvas.coords(machine)[0]+35-_radius/2, 0)
-    canvas.move(machine_state_symbol, -canvas.coords(machine_state_symbol)[0]+35, 0)
+    canvas.move(machine, -canvas.coords(machine)[0]+_radius, 0)
+    canvas.move(machine_state_symbol, -canvas.coords(machine_state_symbol)[0]+1.5*_radius, 0)
     canvas.itemconfig(machine_state_symbol, text=state)
-    for i in range(len(cell_symbols)-1):
+
+    canvas.itemconfig(cell_symbols[0], text=blank[0])
+    for i in range(1, 16):
         if i >= len(tape):
-            break
-        canvas.itemconfig(cell_symbols[i+1], text=tape[i])
+            canvas.itemconfig(cell_symbols[i], text=blank[0])
+        else:
+            canvas.itemconfig(cell_symbols[i], text=tape[i])
 
     time_ = 2000-int(500*np.abs(speed))
     if time_ < 0:
@@ -237,7 +258,9 @@ def change_speed(delta):
     speed += delta
     print('Animation speed:', speed)
 
-Button(control_frame, text='Restart', command=restart).grid(row=2, column=0)
+
+restart_button.config(command=restart)
+restart_button.grid(row=2, column=0)
 Button(control_frame, text='Speed up', command=lambda: change_speed(0.1)).grid(row=2, column=1)
 Button(control_frame, text='Slow down', command=lambda: change_speed(-0.1)).grid(row=2, column=2)
 
