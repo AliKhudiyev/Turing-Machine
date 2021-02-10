@@ -76,8 +76,8 @@ init_state_copy = init_state.copy()
 
 def compute(one_step_run=False, tape=input_symbols_copy, machine_state=init_state_copy[0], index=0):
     if not one_step_run:
-        print(f'States:{states}\nSymbols:{symbols}\nBlank:{blank}\nInput symbols:{input_symbols}\nInitial state:\
-{init_state}\nFinal state:{final_state}')
+        print(f'States: {states}\nSymbols: {symbols}\nBlank: {blank}\nInput symbols: \
+{input_symbols}\nInitial state: {init_state}\nFinal state: {final_state}')
         print('\nTransitions:')
         for transition in transitions:
             print(transition[0], '->', transition[1])
@@ -87,7 +87,7 @@ def compute(one_step_run=False, tape=input_symbols_copy, machine_state=init_stat
         exit(1)
     
     direction = 0
-    transition = None
+    recent_transition = None
     while machine_state != 'HALT':
         if index == -1:
             index = 0
@@ -98,8 +98,8 @@ def compute(one_step_run=False, tape=input_symbols_copy, machine_state=init_stat
         is_found = False
         for transition in transitions:
             if machine_state == transition[0][0] and tape[index] == transition[0][1]:
-                transition = transition
                 print('applying transition:', transition)
+                recent_transition = transition
                 is_found = True
                 new_symbol = transition[1][0]
                 go_to = transition[1][1]
@@ -116,13 +116,13 @@ def compute(one_step_run=False, tape=input_symbols_copy, machine_state=init_stat
                 print(tape)
                 break
         if not is_found:
-            print('Halting...')
+            print('[TRANSITION NOT FOUND!] Halting...')
             machine_state = 'HALT'
             break
         if one_step_run:
             break
     
-    return tape, machine_state, index, transition, direction
+    return tape, machine_state, index, recent_transition, direction
 
 compute()
 # - - - - - - - - - - - - - - - - - - -
@@ -161,10 +161,11 @@ for i in range(16):
     cells.append(cell)
     cell_symbols.append(cell_symbol)
 
-for i in range(len(cell_symbols)-1):
-    if i >= len(tape):
-        break
-    canvas.itemconfig(cell_symbols[i+1], text=tape[i])
+for i in range(1, len(cell_symbols)-1):
+    if i - 1 >= len(tape):
+        canvas.itemconfig(cell_symbols[i], text=blank[0])
+    else:
+        canvas.itemconfig(cell_symbols[i], text=tape[i-1])
 canvas.itemconfig(machine_state_symbol, text=state)
 
 def move_machine(direction, machine_state):
@@ -182,21 +183,21 @@ def move_tape(direction, machine_state):
     
     canvas.itemconfig(cell_symbols[0], text=blank[0])
     for i in range(1, 16):
-        if i >= len(tape):
+        if i - 1 >= len(tape):
             canvas.itemconfig(cell_symbols[i], text=blank[0])
         else:
-            canvas.itemconfig(cell_symbols[i], text=tape[i])
+            canvas.itemconfig(cell_symbols[i], text=tape[i-1])
     # canvas.move(machine_state_symbol, sign*_radius, 0)
     canvas.itemconfigure(machine_state_symbol, text=machine_state)
 
-def run():
-    global tape, state, index
+def run(tape, state, index, transition, dir_):
+    # global tape, state, index
     global speed
     global restart_button
 
     restart_button['state'] = DISABLED
     
-    tape, state, index, transition, dir_ = compute(one_step_run=True, tape=tape, machine_state=state, index=index)
+    # tape, state, index, transition, dir_ = compute(one_step_run=True, tape=tape, machine_state=state, index=index)
     coord = canvas.coords(machine)
     is_halted = False
     
@@ -205,10 +206,17 @@ def run():
         restart_button['state'] = NORMAL
         canvas.itemconfig(machine_state_symbol, text='HALT')
         is_halted = True
-    elif coord[0] >= 2*_radius*14 and dir_ == 'R':
+
+        canvas.itemconfig(cell_symbols[0], text=blank[0])
+        for i in range(1, len(cell_symbols)-1):
+            if i - 1 >= len(tape):
+                canvas.itemconfig(cell_symbols[i], text=blank[0])
+            else:
+                canvas.itemconfig(cell_symbols[i], text=tape[i-1])
+    elif coord[0] >= 14*_radius and dir_ == 'R':
         print('shifting the tape left...')
         move_tape(direction='L', machine_state=state)
-    elif coord[2] <= 2*_radius*2 and dir_ == 'L':
+    elif coord[2] <= 2*_radius and dir_ == 'L':
         print('shifting the tape right...')
         move_tape(direction='R', machine_state=state)
     else:
@@ -217,15 +225,20 @@ def run():
     
     if not is_halted:
         transition_label.config(text=f'Transition: {transition[0][0]}, {transition[0][1]} -> {transition[1][0]}, {transition[1][1]}, {transition[1][2]}')
-        for i in range(len(cell_symbols)-1):
-            if i >= len(tape):
-                break
-            canvas.itemconfig(cell_symbols[i+1], text=tape[i])
+
+        canvas.itemconfig(cell_symbols[0], text=blank[0])
+        for i in range(1, len(cell_symbols)-1):
+            if i - 1 >= len(tape):
+                canvas.itemconfig(cell_symbols[i], text=blank[0])
+            else:
+                canvas.itemconfig(cell_symbols[i], text=tape[i-1])
 
         time_ = 2000-int(500*np.abs(speed))
         if time_ < 0:
             time_ = 10
-        root.after(time_, run)
+        
+        tape, state, index, transition, dir_ = compute(one_step_run=True, tape=tape, machine_state=state, index=index)
+        root.after(time_, lambda: run(tape, state, index, transition, dir_))
 
 def restart():
     global tape, state, index
@@ -236,8 +249,8 @@ def restart():
     index = 0
 
     print('\tRestarted!')
-    print(tape)
-    print(state)
+    # print(tape)
+    # print(state)
     restart_button['state'] = DISABLED
 
     canvas.move(machine, -canvas.coords(machine)[0]+_radius, 0)
@@ -246,15 +259,18 @@ def restart():
 
     canvas.itemconfig(cell_symbols[0], text=blank[0])
     for i in range(1, 16):
-        if i >= len(tape):
+        if i - 1 >= len(tape):
             canvas.itemconfig(cell_symbols[i], text=blank[0])
         else:
-            canvas.itemconfig(cell_symbols[i], text=tape[i])
+            canvas.itemconfig(cell_symbols[i], text=tape[i-1])
+    
+    tape, state, index, transition, dir_ = compute(one_step_run=True, tape=tape, machine_state=state, index=index)
+    transition_label.config(text=f'Transition: {transition[0][0]}, {transition[0][1]} -> {transition[1][0]}, {transition[1][1]}, {transition[1][2]}')
 
     time_ = 2000-int(500*np.abs(speed))
     if time_ < 0:
         time_ = 10
-    root.after(time_, run)
+    root.after(time_, lambda: run(tape, state, index, transition, dir_))
 
 def change_speed(delta):
     global speed
@@ -267,5 +283,5 @@ restart_button.grid(row=2, column=0)
 Button(control_frame, text='Speed up', command=lambda: change_speed(0.1)).grid(row=2, column=1)
 Button(control_frame, text='Slow down', command=lambda: change_speed(-0.1)).grid(row=2, column=2)
 
-root.after(1000, run)
+root.after(1000, restart)
 root.mainloop()
