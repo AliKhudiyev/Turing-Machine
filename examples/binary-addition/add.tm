@@ -1,31 +1,41 @@
-Q = {R0,R1,CARRY,HALT}
-G = {_,0,1}
+Q = {PREP,R-1,L+1,R-1C0,L+1C0,R-1C1,L+1C1,HALT}
+G = {_,0,1,+}
 b = {_}
-S = {1,3,1,2,1,2}
+S = {0,0,1,0,1,+,0,1,0,0,1}
 q = {PREP}
 F = {HALT}
 
-PREP,_ -> _,L,PICK
+PREP,_ -> _,L,R-1
+PREP,0 -> 0,R,PREP
 PREP,1 -> 1,R,PREP
-PREP,2 -> 2,R,PREP
-PREP,3 -> 3,R,PREP
+PREP,+ -> +,R,PREP
 
-PICK,_ -> _,R,HALT
-PICK,1 -> _,R,P1
-PICK,2 -> _,R,P2
-PICK,3 -> _,R,P3
+R-1,_ -> _,R,HALT
+R-1,0 -> 1,L,R-1C1
+R-1,1 -> 0,L,R-1C0
+R-1,+ -> +,R,HALT
 
-P1,_ -> 1,L,PREP
-P1,1 -> 1,R,P1
-P1,2 -> 2,R,P1
-P1,3 -> 3,R,P1
+R-1C0,_ -> _,L,HALT
+R-1C0,0 -> 0,L,R-1C0
+R-1C0,1 -> 1,L,R-1C0
+R-1C0,+ -> +,L,L+1
 
-P2,_ -> 2,L,PREP
-P2,1 -> 1,R,P1
-P2,2 -> 2,R,P1
-P2,3 -> 3,R,P1
+R-1C1,_ -> _,L,HALT
+R-1C1,0 -> 1,L,R-1C1
+R-1C1,1 -> 0,L,R-1C0
+R-1C1,+ -> +,L,HALT
 
-P3,_ -> 3,L,PREP
-P3,1 -> 1,R,P1
-P3,2 -> 2,R,P1
-P3,3 -> 3,R,P1
+L+1,_ -> _,R,HALT
+L+1,0 -> 1,L,L+1C0
+L+1,1 -> 0,L,L+1C1
+L+1,+ -> +,R,HALT
+
+L+1C0,_ -> _,R,PREP
+L+1C0,0 -> 0,L,L+1C0
+L+1C0,1 -> 1,L,L+1C0
+L+1C0,+ -> +,L,HALT
+
+L+1C1,_ -> _,R,PREP
+L+1C1,0 -> 1,L,L+1C0
+L+1C1,1 -> 0,L,L+1C1
+L+1C1,+ -> +,L,HALT
