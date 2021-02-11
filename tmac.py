@@ -39,7 +39,6 @@ with open(program, 'r') as f:
     final_state = f.readline()[:-1]
     transitions = list()
     
-    
     for i, line in enumerate(f):
         line = line[:-1]
         if len(line) < 1:
